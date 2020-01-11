@@ -16,3 +16,8 @@ Since applinux pack together apps and icons and move them to `/usr/lib` in order
 
 You can actually specify packages destination if you don't like `/usr/bin`
 
+> $ applinux new <appname> --bin <path/to/appname> --dest <path/to/destination>
+
+## Config
+
+If you are lazy and sqeamish too, specify an alternative destination path for each of your binaries is too much. In this case you can update the config.yaml file you can find nowhere. Not my business sorry.
