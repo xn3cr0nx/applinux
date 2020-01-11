@@ -1,0 +1,12 @@
+[package]
+name = "applinux"
+version = "0.1.0"
+authors = ["Patrick Jusic <patrick.jusic@protonmail.com>"]
+edition = "2018"
+license = "Apache-2.0"
+readme = "README.md"
+description = "A tool to pack a linux desktop application"
+keywords = ["cli", "linux", "desktop", "app"]
+categories = ["command-line-utilities"]
+
+[dependencies]
