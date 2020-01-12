@@ -12,3 +12,4 @@ categories = ["command-line-utilities"]
 [dependencies]
 clap = "~2.27.0"
 colored = "1.9"
+dirs = "2.0"

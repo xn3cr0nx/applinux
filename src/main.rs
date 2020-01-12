@@ -5,6 +5,8 @@ use std::fs;
 use std::fs::File;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use colored::*;
+#[allow(unused_imports)]
+use dirs::*;
 
 fn main() {
   let matches = App::new("applinux")
@@ -109,10 +111,14 @@ fn new_match(m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
   } 
   let fileicon = icon.file_name().unwrap().to_str().unwrap();
 
+  let local = dirs::home_dir().unwrap().join(".local/share");
+  let applications = local.join("applications");
+
   let name = m.value_of("name").unwrap_or_else(|| &filename); 
   let comment = m.value_of("comment").unwrap_or_else(|| "None"); 
-  let path = Path::new(m.value_of("destination").unwrap_or_else(|| "/usr/local")).join(&name);
+  let path = Path::new(m.value_of("destination").unwrap_or_else(|| local.to_str().unwrap())).join(&name);
   let rm = m.is_present("remove");
+
 
   println!("Creating package {} ({})", name.blue(), comment);
   println!("Binary location: {}", bin.to_str().unwrap().blue());
@@ -159,7 +165,7 @@ fn new_match(m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
 
       print!("Creating desktop file... ");
       let desktop_file = format!("{}.desktop", &name);
-      let desktop_path = Path::new("/usr/share/applications").join(&desktop_file);
+      let desktop_path = applications.join(&desktop_file);
       let data = applinux::get_desktop_template();
       let mut new_data = data.replace("<name>", &name);
       new_data = new_data.replace("<exec>", &path.join(&filename).to_string_lossy());
@@ -169,11 +175,13 @@ fn new_match(m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
       if comment != "None" {
         new_data = new_data.replace("<comment>", comment);
       }
-      fs::write(&desktop_path, new_data.as_bytes()).unwrap();
-      println!("{}", "desktop file created".green());
-
-      Ok(String::from(""))
-
+      match fs::write(&desktop_path, new_data.as_bytes()) {
+        Ok(_s) => {
+          println!("{}", "desktop file created".green());
+          Ok(String::from(""))
+        }
+        Err(s) => Err(s.to_string())
+      }
     },
     Err(s) => Err(s.to_string())
   }
