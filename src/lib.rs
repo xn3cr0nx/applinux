@@ -2,11 +2,16 @@
 use std::path::Path;
 
 pub fn is_dir(val: String) -> Result<(), String> {
-    if Path::new(&val).is_dir() {
-        Ok(())
+  let path = Path::new(&val);
+  if path.is_dir() {
+    if path.is_absolute() {
+      Ok(())
     } else {
-        Err(String::from("the argument is not a directory"))
+      Err(String::from("path should be absolute"))
     }
+  } else {
+      Err(String::from("the argument is not a directory"))
+  }
 }
 
 
@@ -30,12 +35,26 @@ pub fn is_icon(val: String) -> Result<(), String> {
   }
 }
 
+pub fn get_desktop_template() -> String {
+  String::from("[Desktop Entry]
+Version=1.0
+Type=Application
+Name=<name>
+Comment=<comment>
+Exec=<exec>
+Icon=<icon>
+NoDisplay=true
+Terminal=false")
+}
+
 #[test]
 fn check_is_path() {
   let path : String = String::from("/tmp"); 
   assert_eq!(is_dir(path).is_ok(), true);
-  let wrong_path : String = String::from("path"); 
-  assert_eq!(is_dir(wrong_path).is_ok(), false)
+  let wrong_path : String = String::from("/path"); 
+  assert_eq!(is_dir(wrong_path).is_ok(), false);
+  let not_absolute_path : String = String::from("tmp"); 
+  assert_eq!(is_dir(not_absolute_path).is_ok(), false)
 }
 
 #[test]
@@ -44,4 +63,10 @@ fn check_is_file() {
   assert_eq!(is_file(file).is_ok(), true);
   let wrong_file : String = String::from("path"); 
   assert_eq!(is_file(wrong_file).is_ok(), false)
+}
+
+#[test]
+fn check_is_icon() {
+  let icon : String = String::from("Cargo.toml");
+  assert_eq!(is_icon(icon).is_ok(), false);
 }

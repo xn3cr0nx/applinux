@@ -7,9 +7,7 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use colored::*;
 
 fn main() {
-  let name : &'static str = "applinux";
-
-  let matches = App::new(name)
+  let matches = App::new("applinux")
     .about("A tool to patch your linux desktop applications")
     .version("0.1")
     .author("Patrick Jusic <patrick.jusic@protonmail.com>")
@@ -22,17 +20,34 @@ fn main() {
       .global(true)
     )
     .arg(
+      Arg::with_name("name")
+      .long("name")
+      .short("n")
+      .help("specify application name")
+      .takes_value(true)
+      .global(true)
+    )
+    .arg(
+      Arg::with_name("comment")
+      .long("comment")
+      .short("c")
+      .help("specify application comment")
+      .takes_value(true)
+      .global(true)
+    )
+    .arg(
       Arg::with_name("destination")
       .long("dest")
-      .help("app destination path")
+      .help("specify app destination path")
       .takes_value(true)
-      // .validator(applinux::is_dir)
+      .validator(applinux::is_dir)
       .global(true)
     )
     .arg(
       Arg::with_name("remove")
       .long("rm")
       .help("remove source files, binary and icon")
+      .takes_value(false)
       .global(true)
     )
     .subcommand(
@@ -56,70 +71,109 @@ fn main() {
           .takes_value(true)
           .validator(applinux::is_icon)
         )
-    )
-    .get_matches();
+    ).get_matches();
 
-    if let Some(subcommand) = matches.subcommand_name() {
-      println!("{} {} running", name.blue().bold(), subcommand.green().blink());
-    }
+    println!("{}\n", "Applinux".blue().bold().blink());
 
     match matches.subcommand() {
       ("new", Some(new_matches)) => {
-        match new_match(name, &matches, new_matches) {
-          Ok(s) => println!("Package successfully created: {}", s),
+        match new_match(&matches, new_matches) {
+          Ok(_s) => println!("{}", "Package successfully created".green().bold()),
           Err(s) => println!("{} {}", "error:".red().bold(), s)
         };
-      }
+      },
+      ("", None) => {
+        println!("{}", matches.usage());
+      },
       _ => unreachable!()
     };
 }
 
-fn new_match(name: &'static str , m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
-  // println!("{:?}", sub.value_of("binary").unwrap());
-  // println!("{:?}", m.value_of("destination").unwrap());
+/* 
+ * new_match creates a new package based on passed bin.
+ * First the package folder is created in specified destination, /usr/local otherwise.
+ * Inside the package the specified binary is copied and, if specified, the icon.
+ * Eventually the desktop file is created to /usr/share/applications. Placeholders for name, exec and icon are replaced.
+ * If --rm flag is specified both bin and icon sources ar removed.
+ */
+fn new_match(m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
+  let mut bin = Path::new(sub.value_of("binary").unwrap());
+  if bin.starts_with("./") {
+    bin = bin.strip_prefix("./").unwrap();
+  } 
+  let filename = bin.file_name().unwrap().to_str().unwrap();
 
-  if sub.value_of("icon").is_some() {
-    println!("{:?}", sub.value_of("icon").unwrap());
-  }
+  let mut icon = Path::new(sub.value_of("icon").unwrap_or_else(|| "None"));
+  if icon.starts_with("./") {
+    icon = icon.strip_prefix("./").unwrap();
+  } 
+  let fileicon = icon.file_name().unwrap().to_str().unwrap();
 
-  let path = Path::new(m.value_of("destination").unwrap_or_else(|| "/usr/local")).join(name);
+  let name = m.value_of("name").unwrap_or_else(|| &filename); 
+  let comment = m.value_of("comment").unwrap_or_else(|| "None"); 
+  let path = Path::new(m.value_of("destination").unwrap_or_else(|| "/usr/local")).join(&name);
+  let rm = m.is_present("remove");
+
+  println!("Creating package {} ({})", name.blue(), comment);
+  println!("Binary location: {}", bin.to_str().unwrap().blue());
+  println!("Icon location: {}", icon.to_str().unwrap().blue());
+  println!("removing source: {}", rm);
+
+  print!("Creating package directory... ");
   match fs::create_dir(&path) {
     Ok(_s) => {
-      println!("{}", "Folder created".green());
-      let bin = sub.value_of("binary").unwrap();
+      println!("{}", "directory created".green());
 
-      let desktop_file = &path.join(format!("{}.desktop", &bin));
-      if fs::copy(Path::new("./examples.desktop"), &desktop_file).is_ok() {
-        let data = fs::read_to_string(&desktop_file).unwrap();
-
-        // Run the replace operation in memory
-        let mut new_data = data.replace("<name>", &bin);
-        new_data = new_data.replace("<exec>", &path.join(&bin).to_string_lossy());
-        // new_data = new_data.replace("<icon>", &path.join(&icon).to_string_lossy());
-
-        fs::write(&desktop_file, new_data.as_bytes()).unwrap();
-      } else {
-        return Err(String::from("cannot copy desktop file"))
-      }
-
-      match fs::copy(&bin, &path.join(&bin)) {
+      print!("Copying binary to package directory... ");
+      match fs::copy(&bin, &path.join(&filename)) {
         Ok(_s) => {
-          println!("{}", "Binary copied".green());
-          if sub.value_of("icon").is_some() { 
-            let icon = sub.value_of("icon").unwrap();
-            match fs::copy(&icon, &path.join(&icon)) {
-              Ok(_s) => {
-                Ok(String::from("test ok"))
-              },
-              Err(s) => Err(s.to_string())
+          println!("{}", "binary copied".green());
+
+          if rm {
+            print!("Removing source binary... ");
+            match fs::remove_file(&bin) {
+              Ok(_s) => println!("{}", "source binary removed".green()),
+              Err(s) => println!("{}: {}", "error cannot remove bin source:".red(), s.to_string())
             }
-          } else {
-            println!("Missing icon");
-            Ok(String::from("test ok"))
+          }
+
+          if fileicon != "None" { 
+            print!("Copying icon to package directory... ");
+            match fs::copy(&icon, &path.join(&fileicon)) {
+              Ok(_s) => {
+                println!("{}", "icon copied".green());
+                if rm {
+                  print!("Removing source icon... ");
+                  match fs::remove_file(&icon) {
+                    Ok(_s) => println!("{}", "source icon removed".green()),
+                    Err(s) => println!("{}: {}", "error cannot remove bin source:".red(), s.to_string())
+                  }
+                }
+              },
+              Err(s) => return Err(s.to_string())
+            }
           }
         },
-        Err(s) => Err(s.to_string())
+        Err(s) => return Err(s.to_string())
       } 
+
+      print!("Creating desktop file... ");
+      let desktop_file = format!("{}.desktop", &name);
+      let desktop_path = Path::new("/usr/share/applications").join(&desktop_file);
+      let data = applinux::get_desktop_template();
+      let mut new_data = data.replace("<name>", &name);
+      new_data = new_data.replace("<exec>", &path.join(&filename).to_string_lossy());
+      if fileicon != "None" {
+        new_data = new_data.replace("<icon>", &path.join(&fileicon).to_string_lossy());
+      }
+      if comment != "None" {
+        new_data = new_data.replace("<comment>", comment);
+      }
+      fs::write(&desktop_path, new_data.as_bytes()).unwrap();
+      println!("{}", "desktop file created".green());
+
+      Ok(String::from(""))
+
     },
     Err(s) => Err(s.to_string())
   }
