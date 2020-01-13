@@ -24,14 +24,14 @@ pub fn is_file(val: String) -> Result<(), String> {
 }
 
 pub fn is_icon(val: String) -> Result<(), String> {
-  if val.ends_with(".ico") || val.ends_with(".png") || val.ends_with(".jpeg") {
+  if val.ends_with(".ico") || val.ends_with(".png") || val.ends_with(".jpeg") || val.ends_with(".svg") {
     if is_file(val).is_ok() {
       Ok(())
     } else {
       Err(String::from("icon file is missing")) 
     }
   } else {
-    Err(String::from("the icon file extension should be ico, png or jpeg"))
+    Err(String::from("the icon file extension should be ico, png, jpeg or svg"))
   }
 }
 
@@ -41,9 +41,10 @@ Version=1.0
 Type=Application
 Name=<name>
 Comment=<comment>
-Exec=<exec>
+Exec=<exec> %U
+TryExec=<exec>
 Icon=<icon>
-NoDisplay=true
+Categories=Utility;
 Terminal=false")
 }
 

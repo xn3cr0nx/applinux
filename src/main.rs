@@ -168,7 +168,7 @@ fn new_match(m: & ArgMatches, sub: & ArgMatches) -> Result<String, String> {
       let desktop_path = applications.join(&desktop_file);
       let data = applinux::get_desktop_template();
       let mut new_data = data.replace("<name>", &name);
-      new_data = new_data.replace("<exec>", &path.join(&filename).to_string_lossy());
+      new_data = new_data.replacen("<exec>", &path.join(&filename).to_string_lossy(), 2);
       if fileicon != "None" {
         new_data = new_data.replace("<icon>", &path.join(&fileicon).to_string_lossy());
       }
